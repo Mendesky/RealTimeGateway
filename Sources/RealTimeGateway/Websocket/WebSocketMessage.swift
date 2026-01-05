@@ -16,8 +16,7 @@ public protocol WebSocketMessage: Codable, Sendable {
 }
 
 public struct GatewayMessage<P: WebSocketPayload>: WebSocketMessage {
-    
-    public typealias Payload = P
+
     public var type: String
     public var payload: P
     
@@ -29,14 +28,14 @@ public struct GatewayMessage<P: WebSocketPayload>: WebSocketMessage {
 
     
 public struct StandardPayload: WebSocketPayload {
-    var quotationId: String?
-    var quotingCaseId: String?
-    var quotingBundleId: String?
-    var quotingUnitId: String?
-    var addtionalQuotingUnitId: String?
-    var serviceScopeId: String?
-    var businessClientId: String?
-    var customMetadata: CustomMetadata
+    public var quotationId: String?
+    public var quotingCaseId: String?
+    public var quotingBundleId: String?
+    public var quotingUnitId: String?
+    public var addtionalQuotingUnitId: String?
+    public var serviceScopeId: String?
+    public var businessClientId: String?
+    public var customMetadata: CustomMetadata
     
     public init(
         quotationId: String? = nil,
@@ -60,5 +59,5 @@ public struct StandardPayload: WebSocketPayload {
 }
 
 public struct CustomMetadata: Codable, Sendable {
-    var userId: String?
+    public var userId: String?
 }

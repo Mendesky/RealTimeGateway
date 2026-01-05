@@ -12,7 +12,6 @@ import HummingbirdWebSocket
 
 let logger = Logger(label: "WebSocketServer")
 
-
 public protocol Stream {
     associatedtype T: EventMessageProcessor
     var name: String { get }
@@ -52,7 +51,7 @@ public actor WebSocket<W: WebSocketMessage> {
         
     }
     
-    public func webSocketSubscribeKurrentDB<P: EventMessageProcessor>(streamName: String, eventProcessor: P) {
+    public func webSocketSubscribeKurrentDB<P: EventMessageProcessor>(streamName: String, eventProcessor: P, retryCount: Int = 0, maxRetries: Int = 10) {
         Task {
             
             let client = self.client
@@ -62,7 +61,7 @@ public actor WebSocket<W: WebSocketMessage> {
                 }
                 
                 for try await result in subscription.events {
-                    let message = try eventProcessor.start(eventData: result.record)
+                    let message = try eventProcessor.process(eventData: result.record)
                     guard let message else {
                         logger.error("Error: The event does not have a corresponding message")
                         continue
@@ -72,10 +71,13 @@ public actor WebSocket<W: WebSocketMessage> {
                 }
             } catch {
                 logger.error("The error happened when subscribing to persistent subscription: \(error)")
+                guard retryCount < maxRetries else {
+                    logger.error("Max retries reached for stream: \(streamName)")
+                    return
+                }
+                try? await Task.sleep(nanoseconds: UInt64(100_000_000))
                 
-                try? await Task.sleep(nanoseconds: UInt64(1_000))
-                
-                self.webSocketSubscribeKurrentDB(streamName: streamName, eventProcessor: eventProcessor)
+                self.webSocketSubscribeKurrentDB(streamName: streamName, eventProcessor: eventProcessor, retryCount: retryCount + 1, maxRetries: maxRetries)
             }
         }
     }

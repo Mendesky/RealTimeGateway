@@ -14,7 +14,7 @@ public struct StandardEventMessageProcessor: EventMessageProcessor {
     
     public typealias MessageType = StandardWebSocketMessage
     
-    public func start(eventData: RecordedEvent) throws -> MessageType? {
+    public func process(eventData: RecordedEvent) throws -> MessageType? {
         let payload = try eventData.decode(to: MessageType.Payload.self)
         guard let payload else { return nil }
         return .init(type: eventData.eventType, payload: payload) //可放 metadata
@@ -23,5 +23,5 @@ public struct StandardEventMessageProcessor: EventMessageProcessor {
 
 public protocol EventMessageProcessor {
     associatedtype MessageType: WebSocketMessage
-    func start(eventData: RecordedEvent) throws -> MessageType?
+    func process(eventData: RecordedEvent) throws -> MessageType?
 }
