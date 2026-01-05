@@ -12,7 +12,7 @@ enum BroadcastError: Error {
     case jsonEncodingFailed
 }
 
-struct SubscriptionRegister {
+struct SubscriptionRegistry {
     var subscriptions: [Subscription] = []
     
     mutating func register(subscription: Subscription) {
@@ -32,19 +32,10 @@ struct SubscriptionRegister {
     }
     
     mutating func unsubscribe(id: UUID) {
-        for subscription in self.subscriptions {
-            var newSubscriptions = subscription.ids
-            newSubscriptions.remove(id)
-            if newSubscriptions.isEmpty {
-                self.subscriptions.removeAll { $0.topic == subscription.topic }
-            }
-            else {
-                guard let index = self.subscriptions.firstIndex(where: { $0.topic == subscription.topic }) else {
-                    continue
-                }
-                self.subscriptions[index].ids.remove(id)
-                
-            }
+        self.subscriptions = self.subscriptions.compactMap { subscription in
+            var ids = subscription.ids
+            ids.remove(id)
+            return ids.isEmpty ? nil : Subscription(topic: subscription.topic, ids: ids)
         }
     }
     
@@ -61,7 +52,7 @@ struct Subscription {
 package actor ConnectionManager {
     
     var connections: [UUID: WebSocketOutboundWriter] = [:]
-    var subscriptionRegister: SubscriptionRegister = .init()
+    var subscriptionRegistry: SubscriptionRegistry = .init()
     
     func add(id: UUID, writer: WebSocketOutboundWriter) {
         connections[id] = writer
@@ -69,15 +60,15 @@ package actor ConnectionManager {
     
     func remove(id: UUID) {
         connections.removeValue(forKey: id)
-        self.subscriptionRegister.unsubscribe(id: id)
+        self.subscriptionRegistry.unsubscribe(id: id)
     }
     
     func subscribe(to topic: String, id: UUID) {
-        self.subscriptionRegister.subscribe(topic: topic, id: id)
+        self.subscriptionRegistry.subscribe(topic: topic, id: id)
     }
     
     func unsubscribe(id: UUID) {
-        self.subscriptionRegister.unsubscribe(id: id)
+        self.subscriptionRegistry.unsubscribe(id: id)
     }
     
     func broadcast<T: WebSocketMessage>(message: T, to topic: String? = nil) async throws {
@@ -91,7 +82,7 @@ package actor ConnectionManager {
         
         let targetIds: Set<UUID>
         if let topic = topic {
-            if let subscription = self.subscriptionRegister.findSubscription(topic: topic) {
+            if let subscription = self.subscriptionRegistry.findSubscription(topic: topic) {
                 targetIds = subscription.ids
             } else {
                 targetIds = Set()
