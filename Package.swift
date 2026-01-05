@@ -18,7 +18,6 @@ let package = Package(
         .package(url: "https://github.com/hummingbird-project/hummingbird-websocket.git", from: "2.6.0"),
         .package(url: "https://github.com/gradyzhuo/KurrentDB-Swift.git", from: "1.11.2"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
-        .package(url: "git@github.com:Mendesky/DDDKit.git", from: "1.10.1"),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
@@ -30,7 +29,6 @@ let package = Package(
                 .product(name: "HummingbirdWebSocket", package: "hummingbird-websocket"),
                 .product(name: "KurrentDB", package: "KurrentDB-Swift"),
                 .product(name: "Logging", package: "swift-log"),
-                .product(name: "DDDKit", package: "DDDKit"),
             ]
         ),
         .testTarget(

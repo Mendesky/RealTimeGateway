@@ -45,65 +45,48 @@ public actor WebSocket<W: WebSocketMessage> {
     }
 
     
-    public func subscribeStreams(streams: [Stream], groupName: String) async {
+    public func subscribeStreams<S: Stream>(streams: [S]) async {
         for stream in streams {
-            do {
-                try await self.client.createPersistentSubscription(stream: stream.name, groupName: groupName) {
-                    $0.resolveLink()
-                }
-            } catch let error as KurrentError {
-                logger.error("create persistent subscription error: \(error)")
-            } catch {
-                logger.error("handle subscription error:\(error)")
-            }
-
-            self.webSocketSubscribeKurrentDB(streamName: stream.name, groupName: groupName, eventProcessor: stream.processor)
+            self.webSocketSubscribeKurrentDB(streamName: stream.name, eventProcessor: stream.processor)
         }
         
     }
     
-    public func webSocketSubscribeKurrentDB(streamName: String, groupName: String, eventProcessor: EventMessageProcessor) {
+    public func webSocketSubscribeKurrentDB<P: EventMessageProcessor>(streamName: String, eventProcessor: P) {
         Task {
-            // If `client` is Sendable (or thread-safe), capture it locally
+            
             let client = self.client
             do {
-                let subscription = try await client.subscribePersistentSubscription(
-                    stream: streamName,
-                    groupName: groupName
-                )
-                
+                let subscription = try await client.subscribeStream(streamName) {
+                    $0.resolveLinks()
+                }
                 
                 for try await result in subscription.events {
-                    let message = try eventProcessor.start(eventData: result.event.record)
+                    let message = try eventProcessor.start(eventData: result.record)
                     guard let message else {
                         logger.error("Error: The event does not have a corresponding message")
                         continue
                     }
                     
                     try await self.connectionManager.broadcast(message: message)
-                    try await subscription.ack(readEvents: result.event)
                 }
             } catch {
                 logger.error("The error happened when subscribing to persistent subscription: \(error)")
                 
                 try? await Task.sleep(nanoseconds: UInt64(1_000))
                 
-                self.webSocketSubscribeKurrentDB(streamName: streamName, groupName: groupName, eventProcessor: eventProcessor)
+                self.webSocketSubscribeKurrentDB(streamName: streamName, eventProcessor: eventProcessor)
             }
         }
     }
-    
-    public func subscribeAll() {
         
-    }
-    
     public func handleConnection(inbound: WebSocketInboundStream, outbound: WebSocketOutboundWriter) async {
         
         let id = UUID()
         await self.connectionManager.add(id: id, writer: outbound)
         
         do {
-            for try await _ in inbound {
+            for try await message in inbound {
                 
             }
         } catch{

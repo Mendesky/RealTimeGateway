@@ -7,9 +7,8 @@
 
 import HummingbirdWebSocket
 import Foundation
-
-
     
+
 package actor ConnectionManager {
     
     var connections: [UUID: WebSocketOutboundWriter] = [:]
@@ -49,7 +48,7 @@ package actor ConnectionManager {
         }
     }
     
-    func broadcast(message: WebSocketMessage, to topic: String? = nil) async throws {
+    func broadcast<T: WebSocketMessage>(message: T, to topic: String? = nil) async throws {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         let jsonData = try encoder.encode(message)

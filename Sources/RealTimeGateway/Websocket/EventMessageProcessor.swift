@@ -6,8 +6,6 @@
 //
 import Foundation
 import KurrentDB
-import DDDKit
-
 
 
 public struct StandardEventMessageProcessor: EventMessageProcessor {
