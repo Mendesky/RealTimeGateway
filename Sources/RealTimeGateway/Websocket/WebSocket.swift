@@ -12,18 +12,16 @@ import HummingbirdWebSocket
 
 let logger = Logger(label: "WebSocketServer")
 
-public protocol Stream {
+public protocol StreamHelper {
     associatedtype T: EventMessageProcessor
     var name: String { get }
     var processor: T { get }
 }
 
-public struct StandardStream<T: EventMessageProcessor>: Stream {
+public struct StandardStream<T: EventMessageProcessor>: StreamHelper {
     public var name: String
     
     public var processor: T
-    
-    public typealias T = T
     
     public init(name: String, processor: T) {
         self.name = name
@@ -31,7 +29,7 @@ public struct StandardStream<T: EventMessageProcessor>: Stream {
     }
 }
 
-public typealias standardWebSocket = WebSocket<StandardWebSocketMessage>
+public typealias StandardWebSocket = WebSocket<StandardWebSocketMessage>
 
 public actor WebSocket<W: WebSocketMessage> {
     
@@ -44,11 +42,14 @@ public actor WebSocket<W: WebSocketMessage> {
     }
 
     
-    public func subscribeStreams<S: Stream>(streams: [S]) async {
-        for stream in streams {
-            self.webSocketSubscribeKurrentDB(streamName: stream.name, eventProcessor: stream.processor)
+    public func subscribeStreams<S: StreamHelper>(streamHelpers: S...) async {
+        await self.subscribeStreams(streamHelpers: streamHelpers)
+    }
+    
+    public func subscribeStreams<S: StreamHelper>(streamHelpers: [S]) async {
+        for streamHelper in streamHelpers {
+            self.webSocketSubscribeKurrentDB(streamName: streamHelper.name, eventProcessor: streamHelper.processor)
         }
-        
     }
     
     public func webSocketSubscribeKurrentDB<P: EventMessageProcessor>(streamName: String, eventProcessor: P, retryCount: Int = 0, maxRetries: Int = 10) {

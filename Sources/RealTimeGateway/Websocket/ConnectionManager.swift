@@ -9,7 +9,7 @@ import HummingbirdWebSocket
 import Foundation
 
 enum BroadcastError: Error {
-    case jsonEncodingFailed
+    case jsonStringDecodingFailed
 }
 
 struct SubscriptionRegistry {
@@ -77,7 +77,7 @@ package actor ConnectionManager {
         let jsonData = try encoder.encode(message)
         
         guard let jsonString = String(data: jsonData, encoding: .utf8) else {
-            throw BroadcastError.jsonEncodingFailed
+            throw BroadcastError.jsonStringDecodingFailed
         }
         
         let targetIds: Set<UUID>
