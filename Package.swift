@@ -33,7 +33,11 @@ let package = Package(
         ),
         .testTarget(
             name: "RealTimeGatewayTests",
-            dependencies: ["RealTimeGateway"]
+            dependencies: [
+                "RealTimeGateway",
+                .product(name: "HummingbirdWSTesting", package: "hummingbird-websocket"),
+                .product(name: "HummingbirdTesting", package: "hummingbird"),
+            ]
         ),
     ]
 )

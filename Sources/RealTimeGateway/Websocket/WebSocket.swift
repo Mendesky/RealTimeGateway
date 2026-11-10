@@ -36,54 +36,52 @@ public actor WebSocket<W: WebSocketMessage> {
     
     var client: KurrentDBClient
     var connectionManager: ConnectionManager
-    
+    let resubscribePolicy: ResubscribePolicy
+    var streamTasks = StreamTaskRegistry()
+
     public init(client: KurrentDBClient) {
-        self.client = client
-        self.connectionManager = ConnectionManager()
+        self.init(client: client, resubscribePolicy: .default)
     }
 
-    
+    public init(client: KurrentDBClient, resubscribePolicy: ResubscribePolicy = .default) {
+        self.client = client
+        self.connectionManager = ConnectionManager()
+        self.resubscribePolicy = resubscribePolicy
+    }
+
+
     public func subscribeStreams<S: StreamHelper>(streamHelpers: S...) async {
         await self.subscribeStreams(streamHelpers: streamHelpers)
     }
-    
+
     public func subscribeStreams<S: StreamHelper>(streamHelpers: [S]) async {
         for streamHelper in streamHelpers {
-            self.webSocketSubscribeKurrentDB(streamName: streamHelper.name, eventProcessor: streamHelper.processor)
+            self.subscribe(streamName: streamHelper.name, processor: streamHelper.processor)
         }
     }
-    
-    public func webSocketSubscribeKurrentDB<P: EventMessageProcessor>(streamName: String, eventProcessor: P, retryCount: Int = 0, maxRetries: Int = 10) {
-        Task {
-            
-            let client = self.client
-            do {
-                let subscription = try await client.subscribeStream(streamName) {
-                    $0.resolveLinks()
-                }
-                
-                for try await result in subscription.events {
-                    let message = try eventProcessor.process(eventData: result.record)
-                    guard let message else {
-                        logger.error("Error: The event does not have a corresponding message")
-                        continue
-                    }
-                    
-                    try await self.connectionManager.broadcast(message: message)
-                }
-            } catch {
-                logger.error("The error happened when subscribing to persistent subscription: \(error)")
-                guard retryCount < maxRetries else {
-                    logger.error("Max retries reached for stream: \(streamName)")
-                    return
-                }
-                try? await Task.sleep(nanoseconds: UInt64(100_000_000))
-                
-                self.webSocketSubscribeKurrentDB(streamName: streamName, eventProcessor: eventProcessor, retryCount: retryCount + 1, maxRetries: maxRetries)
+
+    /// 每條 stream 起一個 Task 跑重訂閱迴圈（永不放棄、指數退避）。
+    /// 同一個 streamName 重複呼叫時，舊的迴圈會被取消並由新的取代（不會重複推送）。
+    public func subscribe<P: EventMessageProcessor>(streamName: String, processor: P) {
+        streamTasks.start(streamName: streamName) {
+            Task {
+                await runStreamSubscription(
+                    streamName: streamName,
+                    loop: ResubscribingLoop<ReadEvent>(policy: self.resubscribePolicy),
+                    subscribe: { try await self.client.subscribeStream(streamName, configure: streamSubscriptionOptions).events },
+                    process: { try processor.process(eventData: $0.record) },
+                    resubscribedMessage: { processor.resubscribedMessage(streamName: streamName) },
+                    broadcast: { try await self.connectionManager.broadcast(message: $0) }
+                )
             }
         }
     }
-        
+
+    @available(*, deprecated, message: "retryCount／maxRetries 已無作用：改為永不放棄＋指數退避（ResubscribePolicy）。請改用 subscribe(streamName:processor:)")
+    public func webSocketSubscribeKurrentDB<P: EventMessageProcessor>(streamName: String, eventProcessor: P, retryCount: Int = 0, maxRetries: Int = 10) {
+        self.subscribe(streamName: streamName, processor: eventProcessor)
+    }
+
     public func handleConnection(inbound: WebSocketInboundStream, outbound: WebSocketOutboundWriter) async {
         
         let id = UUID()

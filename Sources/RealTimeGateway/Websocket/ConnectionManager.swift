@@ -49,13 +49,22 @@ struct Subscription {
     var ids: Set<UUID>
 }
     
+package struct BroadcastResult: Sendable, Equatable {
+    package var delivered: Int
+    package var removed: [UUID]
+}
+
 package actor ConnectionManager {
     
-    var connections: [UUID: WebSocketOutboundWriter] = [:]
+    var connections: [UUID: any MessageSink] = [:]
     var subscriptionRegistry: SubscriptionRegistry = .init()
     
     func add(id: UUID, writer: WebSocketOutboundWriter) {
-        connections[id] = writer
+        add(id: id, sink: writer)
+    }
+
+    func add(id: UUID, sink: any MessageSink) {
+        connections[id] = sink
     }
     
     func remove(id: UUID) {
@@ -71,7 +80,8 @@ package actor ConnectionManager {
         self.subscriptionRegistry.unsubscribe(id: id)
     }
     
-    func broadcast<T: WebSocketMessage>(message: T, to topic: String? = nil) async throws {
+    @discardableResult
+    func broadcast<T: WebSocketMessage>(message: T, to topic: String? = nil) async throws -> BroadcastResult {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         let jsonData = try encoder.encode(message)
@@ -91,11 +101,28 @@ package actor ConnectionManager {
             targetIds = Set(connections.keys)
         }
         
-        for id in targetIds {
-            if let writer = connections[id] {
-                try await writer.write(.text(jsonString))
-            }
+        let targets: [(UUID, any MessageSink)] = targetIds.compactMap { id in
+            connections[id].map { (id, $0) }
         }
+        let failed: [UUID] = await withTaskGroup(of: UUID?.self) { group in
+            for (id, sink) in targets {
+                group.addTask {
+                    do {
+                        try await sink.send(text: jsonString)
+                        return nil
+                    } catch {
+                        logger.warning("broadcast write failed, dropping connection \(id): \(error)")
+                        return id
+                    }
+                }
+            }
+            var failed: [UUID] = []
+            for await id in group {
+                if let id { failed.append(id) }
+            }
+            return failed
+        }
+        for id in failed { remove(id: id) }
+        return BroadcastResult(delivered: targets.count - failed.count, removed: failed)
     }
 }
-

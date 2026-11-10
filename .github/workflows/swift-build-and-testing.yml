@@ -12,7 +12,7 @@ jobs:
     name: Swift ${{ matrix.swift }} on ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-24.04]
         swift: ["6.2"]
     runs-on: ${{ matrix.os }}
     steps:
@@ -23,8 +23,7 @@ jobs:
       - uses: webfactory/ssh-agent@v0.9.0
         with:
             ssh-private-key: |
-                  ${{ secrets.DDDKIT_ACCESS_TOKEN }}      
-      - run: sh ./scripts/create_projection.sh
+                  ${{ secrets.DDDKIT }}      
       - run: ulimit -n 10000
       - name: Build 
         run: swift build --build-tests --enable-code-coverage 
