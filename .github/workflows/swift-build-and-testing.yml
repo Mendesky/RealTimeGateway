@@ -23,7 +23,7 @@ jobs:
       - uses: webfactory/ssh-agent@v0.9.0
         with:
             ssh-private-key: |
-                  ${{ secrets.DDDKIT_ACCESS_TOKEN }}      
+                  ${{ secrets.DDDKIT }}      
       - run: sh ./scripts/create_projection.sh
       - run: ulimit -n 10000
       - name: Build 
