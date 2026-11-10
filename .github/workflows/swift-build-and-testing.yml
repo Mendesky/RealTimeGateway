@@ -24,7 +24,6 @@ jobs:
         with:
             ssh-private-key: |
                   ${{ secrets.DDDKIT }}      
-      - run: sh ./scripts/create_projection.sh
       - run: ulimit -n 10000
       - name: Build 
         run: swift build --build-tests --enable-code-coverage 
