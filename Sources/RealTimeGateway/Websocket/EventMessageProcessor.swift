@@ -6,7 +6,6 @@
 //
 import Foundation
 import KurrentDB
-import KurrentDB_V1
 
 
 public struct StandardEventMessageProcessor: EventMessageProcessor {

@@ -5,7 +5,6 @@
 //  Created by 蔡東棋 on 2025/11/27.
 //
 import KurrentDB
-import KurrentDB_V1
 import Logging
 import Foundation
 import Hummingbird
@@ -68,7 +67,7 @@ public actor WebSocket<W: WebSocketMessage> {
                 await runStreamSubscription(
                     streamName: streamName,
                     loop: ResubscribingLoop<ReadEvent>(policy: self.resubscribePolicy),
-                    subscribe: { try await self.client.subscribeStream(streamName, configure: streamSubscriptionOptions).events },
+                    subscribe: { try await self.client.streams(specified: streamName).subscribe(configure: configureStreamSubscription).events },
                     process: { try processor.process(eventData: $0.record) },
                     resubscribedMessage: { processor.resubscribedMessage(streamName: streamName) },
                     broadcast: { try await self.connectionManager.broadcast(message: $0) }
