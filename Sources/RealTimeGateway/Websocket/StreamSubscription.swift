@@ -1,9 +1,9 @@
 import KurrentDB
-import KurrentDB_V1
 
 /// 訂閱選項：解析 link，並明確從 `.end` 開始（重訂閱不續接舊位置，漏掉的區間由 resync 補）。
-func streamSubscriptionOptions(_ options: StreamsSubscribeOptions) -> StreamsSubscribeOptions {
-    options.resolveLinks().startFrom(revision: .end)
+func configureStreamSubscription(_ options: inout Streams<SpecifiedStream>.Subscribe.Options) {
+    options.resolveLinksEnabled = true
+    options.revision = .end
 }
 
 /// 每個 streamName 只保留一個迴圈 Task：重複訂閱同一條 stream 時，先取消舊的再換成新的，避免重複推送。
