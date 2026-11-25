@@ -1,6 +1,5 @@
 import Testing
 import KurrentDB
-import KurrentDB_V1
 @testable import RealTimeGateway
 
 /// 只實作 process 的 conformer（模擬 QC 的 QuotingEventMessageProcessor）：不需修改即可編譯，且預設沒有 resync 訊息。

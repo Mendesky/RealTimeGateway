@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import KurrentDB_V1
+import KurrentDB
 @testable import RealTimeGateway
 
 final class WiringRecorder: @unchecked Sendable {
@@ -11,7 +11,10 @@ final class WiringRecorder: @unchecked Sendable {
 
     // W2：重訂閱起點
     @Test func resubscribeStartsFromEndNotStart() {
-        let options = streamSubscriptionOptions(StreamsSubscribeOptions())
+        var options = Streams<SpecifiedStream>.Subscribe.Options()
+        options.revision = .start
+        options.resolveLinksEnabled = false
+        configureStreamSubscription(&options)
         guard case .end = options.revision else {
             Issue.record("expected .end, got \(options.revision)")
             return
